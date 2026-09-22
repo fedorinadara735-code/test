@@ -30,8 +30,11 @@
   <dialog class="static-dialog" id="editor"><form method="dialog" class="editor-form" id="editor-form"><span class="editor-kicker">План на сегодня</span><h2 id="editor-title">Новая задача</h2><label>Что хочешь сделать?<input id="task-input" type="text" placeholder="Например, разобрать почту" required></label><label class="main-choice"><input id="main-input" type="checkbox"> Сделать главной задачей</label><menu><button class="cancel-button" value="cancel">Отмена</button><button class="save-button" value="default">Сохранить</button></menu></form></dialog>
   <script>
     const initial={tasks:[{id:'main',title:'Подготовить презентацию',done:false,main:true,icon:'★',tone:'green'},{id:'doctor',title:'Позвонить врачу',done:false,main:false,icon:'☎',tone:'peach'},{id:'shopping',title:'Купить продукты',done:false,main:false,icon:'⌑',tone:'green'}],care:[{id:'sport',title:'Спорт',icon:'↔',tone:'green',done:true},{id:'walk',title:'Прогулка',icon:'♧',tone:'peach',done:false},{id:'hobby',title:'Хобби',icon:'◉',tone:'lilac',done:false}]};
+    const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
+    const api='https://asya.31-76-31-42.sslip.io';
+    const day=new Date().toLocaleDateString('en-CA');
     let state; try{state=JSON.parse(localStorage.getItem('asya-day'))||initial}catch{state=initial} let editing=null;
-    const $=id=>document.getElementById(id); const save=()=>localStorage.setItem('asya-day',JSON.stringify(state));
+    const $=id=>document.getElementById(id); const save=()=>{localStorage.setItem('asya-day',JSON.stringify(state));if(tg?.initData)fetch(`${api}/state?day=${day}`,{method:'PUT',headers:{'content-type':'application/json','x-telegram-init-data':tg.initData},body:JSON.stringify(state)}).catch(()=>{})};
     const esc=s=>s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     function render(){const done=state.tasks.filter(x=>x.done).length, cared=state.care.filter(x=>x.done).length, main=state.tasks.find(x=>x.main)||state.tasks[0];
       $('task-count').textContent=`${done} из ${state.tasks.length}`;$('care-count').textContent=`${cared} из ${state.care.length}`;$('progress-text').textContent=`${cared}/${state.care.length}`;$('progress').style.setProperty('--progress',`${cared/state.care.length*100}%`);
@@ -42,7 +45,8 @@
     document.addEventListener('click',e=>{const b=e.target.closest('[data-toggle],[data-care],[data-edit]');if(!b)return;if(b.dataset.toggle){const x=state.tasks.find(x=>x.id===b.dataset.toggle);x.done=!x.done;render()}if(b.dataset.care){const x=state.care.find(x=>x.id===b.dataset.care);x.done=!x.done;render()}if(b.dataset.edit)openEditor(b.dataset.edit)});
     function openEditor(id=null){editing=id;const x=state.tasks.find(x=>x.id===id);$('editor-title').textContent=x?'Изменить задачу':'Новая задача';$('task-input').value=x?.title||'';$('main-input').checked=x?.main||false;$('editor').showModal();setTimeout(()=>$('task-input').focus(),50)}
     $('add').onclick=()=>openEditor();$('editor-form').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;const title=$('task-input').value.trim();if(!title){e.preventDefault();return}const main=$('main-input').checked;if(main)state.tasks.forEach(x=>x.main=false);if(editing){const x=state.tasks.find(x=>x.id===editing);x.title=title;x.main=main}else state.tasks.push({id:Date.now().toString(),title,done:false,main,icon:'○',tone:'green'});render()});
-    const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();const user=tg?.initDataUnsafe?.user;if(user?.first_name)$('name').textContent=user.first_name;
-    $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());render();
+    const user=tg?.initDataUnsafe?.user;if(user?.first_name)$('name').textContent=user.first_name;
+    $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
+    async function start(){if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(response.ok){const saved=await response.json();if(saved?.tasks&&saved?.care)state=saved}}catch{}}render()}start();
   </script>
 </body></html>
