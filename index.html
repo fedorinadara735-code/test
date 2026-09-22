@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f8f6f2" />
+  <title>Ася — добрый планировщик дня</title>
+  <meta name="description" content="Добрый планировщик дня и трекер заботы о себе" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+    <div class="leaf-spray" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <section class="dashboard" aria-label="Планировщик дня Ася">
+      <header class="hero"><div><span class="eyebrow" id="date"></span><h1>Доброе утро, <span id="name">Дара</span> <em>♡</em></h1></div><p class="quiet-note">Ты<br>в порядке ♡</p></header>
+      <section class="asya-message"><div class="asya-avatar"><img src="./asya.png" alt="Ася"></div><div><p><strong>Ася:</strong> <span id="message">Твой план выглядит реалистично</span></p><span>Ты делаешь важные шаги — и это уже многое значит 🌿</span></div></section>
+      <section class="card plan-card">
+        <div class="card-heading"><h2>План на сегодня</h2><span class="summary-button"><span id="task-count">0 из 3</span> <b>›</b></span></div>
+        <div id="main-task"></div><div class="task-list" id="task-list"></div>
+      </section>
+      <section class="card care-card">
+        <div class="card-heading"><h2>Забота о себе</h2><span class="summary-button"><span id="care-count">1 из 3</span> <b>›</b></span></div>
+        <div class="care-content"><div class="progress-wrap"><div class="progress-ring" id="progress"><div><strong id="progress-text">1/3</strong><span>забота<br>о себе сегодня</span><b>♧</b></div></div></div><div class="care-list" id="care-list"></div></div>
+      </section>
+      <div class="actions"><button class="add-button" id="add"><span>＋</span> Добавить задачу</button><p>Больше<br>хороших дней ♡</p></div>
+    </section>
+  </main>
+  <dialog class="static-dialog" id="editor"><form method="dialog" class="editor-form" id="editor-form"><span class="editor-kicker">План на сегодня</span><h2 id="editor-title">Новая задача</h2><label>Что хочешь сделать?<input id="task-input" type="text" placeholder="Например, разобрать почту" required></label><label class="main-choice"><input id="main-input" type="checkbox"> Сделать главной задачей</label><menu><button class="cancel-button" value="cancel">Отмена</button><button class="save-button" value="default">Сохранить</button></menu></form></dialog>
+  <script>
+    const initial={tasks:[{id:'main',title:'Подготовить презентацию',done:false,main:true,icon:'★',tone:'green'},{id:'doctor',title:'Позвонить врачу',done:false,main:false,icon:'☎',tone:'peach'},{id:'shopping',title:'Купить продукты',done:false,main:false,icon:'⌑',tone:'green'}],care:[{id:'sport',title:'Спорт',icon:'↔',tone:'green',done:true},{id:'walk',title:'Прогулка',icon:'♧',tone:'peach',done:false},{id:'hobby',title:'Хобби',icon:'◉',tone:'lilac',done:false}]};
+    let state; try{state=JSON.parse(localStorage.getItem('asya-day'))||initial}catch{state=initial} let editing=null;
+    const $=id=>document.getElementById(id); const save=()=>localStorage.setItem('asya-day',JSON.stringify(state));
+    const esc=s=>s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    function render(){const done=state.tasks.filter(x=>x.done).length, cared=state.care.filter(x=>x.done).length, main=state.tasks.find(x=>x.main)||state.tasks[0];
+      $('task-count').textContent=`${done} из ${state.tasks.length}`;$('care-count').textContent=`${cared} из ${state.care.length}`;$('progress-text').textContent=`${cared}/${state.care.length}`;$('progress').style.setProperty('--progress',`${cared/state.care.length*100}%`);
+      $('message').textContent=done||cared>1?'Ты уже многое сделала. Продолжай в своём темпе':'Твой план выглядит реалистично';
+      $('main-task').innerHTML=main?`<article class="main-task ${main.done?'is-done':''}"><button class="main-toggle" data-toggle="${main.id}"><span class="star">${main.done?'✓':'★'}</span> Главная задача</button><h3>${esc(main.title)}</h3><button class="edit-button" data-edit="${main.id}">•••</button><p>Большие цели<br>складываются<br>из маленьких шагов ♡</p><div class="laptop"><span></span></div></article>`:'';
+      $('task-list').innerHTML=state.tasks.filter(x=>x.id!==main?.id).map(x=>`<div class="task-row ${x.done?'is-done':''}"><button class="checkbox ${x.done?'checked':''}" data-toggle="${x.id}">${x.done?'✓':''}</button><span class="task-title">${esc(x.title)}</span><button class="mini-edit" data-edit="${x.id}">•••</button><span class="round-icon ${x.tone}">${x.icon}</span></div>`).join('');
+      $('care-list').innerHTML=state.care.map(x=>`<button class="care-row ${x.done?'is-done':''}" data-care="${x.id}"><span class="round-icon ${x.tone}">${x.icon}</span><span>${x.title}</span><span class="checkbox ${x.done?'checked':''}">${x.done?'✓':''}</span></button>`).join('');save();}
+    document.addEventListener('click',e=>{const b=e.target.closest('[data-toggle],[data-care],[data-edit]');if(!b)return;if(b.dataset.toggle){const x=state.tasks.find(x=>x.id===b.dataset.toggle);x.done=!x.done;render()}if(b.dataset.care){const x=state.care.find(x=>x.id===b.dataset.care);x.done=!x.done;render()}if(b.dataset.edit)openEditor(b.dataset.edit)});
+    function openEditor(id=null){editing=id;const x=state.tasks.find(x=>x.id===id);$('editor-title').textContent=x?'Изменить задачу':'Новая задача';$('task-input').value=x?.title||'';$('main-input').checked=x?.main||false;$('editor').showModal();setTimeout(()=>$('task-input').focus(),50)}
+    $('add').onclick=()=>openEditor();$('editor-form').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;const title=$('task-input').value.trim();if(!title){e.preventDefault();return}const main=$('main-input').checked;if(main)state.tasks.forEach(x=>x.main=false);if(editing){const x=state.tasks.find(x=>x.id===editing);x.title=title;x.main=main}else state.tasks.push({id:Date.now().toString(),title,done:false,main,icon:'○',tone:'green'});render()});
+    const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();const user=tg?.initDataUnsafe?.user;if(user?.first_name)$('name').textContent=user.first_name;
+    $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());render();
+  </script>
+</body></html>
