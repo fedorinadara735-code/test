@@ -22,6 +22,12 @@ h1 em { font-weight:400; color:#d9917f; font-style:normal; }
 .card h2 { margin:0; font-size:35px; letter-spacing:-.035em; }
 .summary-button { border:0; background:transparent; color:#747c88; font-size:18px; cursor:pointer; }
 .summary-button b { margin-left:7px; color:#22302c; font-size:35px; line-height:0; vertical-align:-4px; font-weight:400; }
+.day-navigation { display:grid; grid-template-columns:48px 1fr 48px; align-items:center; gap:10px; margin:0 0 14px; padding:8px; border-radius:18px; background:rgba(238,242,237,.82); }
+.day-navigation button { width:44px; height:44px; border:0; border-radius:14px; background:rgba(255,255,255,.9); color:var(--sage-dark); font-size:32px; line-height:1; cursor:pointer; box-shadow:0 4px 12px rgba(58,66,59,.07); }
+.day-navigation button:disabled { opacity:.3; cursor:default; box-shadow:none; }
+.day-navigation div { display:flex; flex-direction:column; align-items:center; min-width:0; text-align:center; }
+.day-navigation strong { font-size:17px; text-transform:capitalize; }
+.day-navigation span { margin-top:2px; color:var(--muted); font-size:13px; }
 .main-task { position:relative; min-height:126px; overflow:hidden; padding:22px 24px; border-radius:20px; background:linear-gradient(110deg,#edf2e9,#f5f4ed 60%,#e7eee7); }
 .main-task::after { content:""; position:absolute; width:170px; height:90px; right:16%; bottom:-35px; border-radius:50%; background:rgba(221,204,195,.38); filter:blur(5px); }
 .main-task-label { color:#536b59; font-size:16px; }

@@ -17,7 +17,12 @@
       <header class="hero"><div><span class="eyebrow" id="date"></span><h1>Доброе утро, <span id="name">Дара</span> <em>♡</em></h1></div><p class="quiet-note">Ты<br>в порядке ♡</p></header>
       <section class="asya-message"><div class="asya-avatar"><img src="./asya.png" alt="Ася"></div><div><p><strong>Ася:</strong> <span id="message">Твой план выглядит реалистично</span></p><span>Ты делаешь важные шаги — и это уже многое значит 🌿</span></div></section>
       <section class="card plan-card">
-        <div class="card-heading"><h2>План на сегодня</h2><span class="summary-button"><span id="task-count">0 из 0</span> <b>›</b></span></div>
+        <div class="card-heading"><h2>План на день</h2><span class="summary-button"><span id="task-count">0 из 0</span> <b>›</b></span></div>
+        <nav class="day-navigation" aria-label="Выбор дня">
+          <button id="previous-day" type="button" aria-label="Предыдущий день">‹</button>
+          <div><strong id="selected-day-label">Сегодня</strong><span id="selected-day-date"></span></div>
+          <button id="next-day" type="button" aria-label="Следующий день">›</button>
+        </nav>
         <div id="main-task"></div><div class="task-list" id="task-list"></div>
       </section>
       <section class="card care-card">
@@ -27,29 +32,43 @@
       <div class="actions"><button class="add-button" id="add"><span>＋</span> Добавить задачу</button><p>Больше<br>хороших дней ♡</p></div>
     </section>
   </main>
-  <dialog class="static-dialog" id="editor"><form method="dialog" class="editor-form" id="editor-form"><span class="editor-kicker">План на сегодня</span><h2 id="editor-title">Новая задача</h2><label>Что хочешь сделать?<input id="task-input" type="text" placeholder="Например, разобрать почту" required></label><label class="main-choice"><input id="main-input" type="checkbox"> Сделать главной задачей</label><menu><button class="cancel-button" value="cancel">Отмена</button><button class="save-button" value="default">Сохранить</button></menu></form></dialog>
+  <dialog class="static-dialog" id="editor"><form method="dialog" class="editor-form" id="editor-form"><span class="editor-kicker" id="editor-day">План на сегодня</span><h2 id="editor-title">Новая задача</h2><label>Что хочешь сделать?<input id="task-input" type="text" placeholder="Например, разобрать почту" required></label><label class="main-choice"><input id="main-input" type="checkbox"> Сделать главной задачей</label><menu><button class="cancel-button" value="cancel">Отмена</button><button class="save-button" value="default">Сохранить</button></menu></form></dialog>
   <script>
     const emptyState=()=>({tasks:[],care:[{id:'sport',title:'Спорт',icon:'↔',tone:'green',done:false},{id:'walk',title:'Прогулка',icon:'♧',tone:'peach',done:false},{id:'hobby',title:'Хобби',icon:'◉',tone:'lilac',done:false}]});
     const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
     const api='https://asya.31-76-31-42.sslip.io';
-    const day=new Date().toLocaleDateString('en-CA');
-    const storageKey=`asya-day-${day}`;
+    const formatDay=date=>date.toLocaleDateString('en-CA');
+    const today=formatDay(new Date());
+    const addDays=(day,amount)=>{const date=new Date(`${day}T12:00:00`);date.setDate(date.getDate()+amount);return formatDay(date)};
+    const minDay=addDays(today,-15),maxDay=addDays(today,15);
+    const storageKey=day=>`asya-day-${day}`;
+    const todayClearMarker=`asya-cleared-${today}-v3`;
     const isDemoState=s=>Array.isArray(s?.tasks)&&s.tasks.length===3&&['main','doctor','shopping'].every(id=>s.tasks.some(x=>x.id===id));
     const cleanState=s=>isDemoState(s)?emptyState():s;
-    let state; try{state=cleanState(JSON.parse(localStorage.getItem(storageKey)))||emptyState()}catch{state=emptyState()} let editing=null;
-    const $=id=>document.getElementById(id); const save=()=>{localStorage.setItem(storageKey,JSON.stringify(state));if(tg?.initData)fetch(`${api}/state?day=${day}`,{method:'PUT',headers:{'content-type':'application/json','x-telegram-init-data':tg.initData},body:JSON.stringify(state)}).catch(()=>{})};
+    let selectedDay=today,state=emptyState(),editing=null,loadToken=0;
+    const $=id=>document.getElementById(id);
+    const readLocal=day=>{try{return cleanState(JSON.parse(localStorage.getItem(storageKey(day))))||emptyState()}catch{return emptyState()}};
+    async function save(){const day=selectedDay,payload=JSON.stringify(state);localStorage.setItem(storageKey(day),payload);if(!tg?.initData)return true;try{const response=await fetch(`${api}/state?day=${day}`,{method:'PUT',headers:{'content-type':'application/json','x-telegram-init-data':tg.initData},body:payload});return response.ok}catch{return false}}
     const esc=s=>s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    const dayDate=day=>new Date(`${day}T12:00:00`);
+    const dayName=day=>day===today?'Сегодня':day===addDays(today,1)?'Завтра':day===addDays(today,-1)?'Вчера':new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(dayDate(day));
+    function renderNavigation(){$('selected-day-label').textContent=dayName(selectedDay);$('selected-day-date').textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(dayDate(selectedDay));$('previous-day').disabled=selectedDay===minDay;$('next-day').disabled=selectedDay===maxDay}
     function render(){const done=state.tasks.filter(x=>x.done).length, cared=state.care.filter(x=>x.done).length, main=state.tasks.find(x=>x.main)||state.tasks[0];
+      renderNavigation();
       $('task-count').textContent=`${done} из ${state.tasks.length}`;$('care-count').textContent=`${cared} из ${state.care.length}`;$('progress-text').textContent=`${cared}/${state.care.length}`;$('progress').style.setProperty('--progress',`${cared/state.care.length*100}%`);
       $('message').textContent=done||cared>1?'Ты уже многое сделала. Продолжай в своём темпе':'Твой план выглядит реалистично';
       $('main-task').innerHTML=main?`<article class="main-task ${main.done?'is-done':''}"><button class="main-toggle" data-toggle="${main.id}"><span class="star">${main.done?'✓':'★'}</span> Главная задача</button><h3>${esc(main.title)}</h3><button class="edit-button" data-edit="${main.id}">•••</button><p>Большие цели<br>складываются<br>из маленьких шагов ♡</p><div class="laptop"><span></span></div></article>`:'';
       $('task-list').innerHTML=state.tasks.filter(x=>x.id!==main?.id).map(x=>`<div class="task-row ${x.done?'is-done':''}"><button class="checkbox ${x.done?'checked':''}" data-toggle="${x.id}">${x.done?'✓':''}</button><span class="task-title">${esc(x.title)}</span><button class="mini-edit" data-edit="${x.id}">•••</button><span class="round-icon ${x.tone}">${x.icon}</span></div>`).join('');
-      $('care-list').innerHTML=state.care.map(x=>`<button class="care-row ${x.done?'is-done':''}" data-care="${x.id}"><span class="round-icon ${x.tone}">${x.icon}</span><span>${x.title}</span><span class="checkbox ${x.done?'checked':''}">${x.done?'✓':''}</span></button>`).join('');save();}
-    document.addEventListener('click',e=>{const b=e.target.closest('[data-toggle],[data-care],[data-edit]');if(!b)return;if(b.dataset.toggle){const x=state.tasks.find(x=>x.id===b.dataset.toggle);x.done=!x.done;render()}if(b.dataset.care){const x=state.care.find(x=>x.id===b.dataset.care);x.done=!x.done;render()}if(b.dataset.edit)openEditor(b.dataset.edit)});
-    function openEditor(id=null){editing=id;const x=state.tasks.find(x=>x.id===id);$('editor-title').textContent=x?'Изменить задачу':'Новая задача';$('task-input').value=x?.title||'';$('main-input').checked=x?.main||false;$('editor').showModal();setTimeout(()=>$('task-input').focus(),50)}
-    $('add').onclick=()=>openEditor();$('editor-form').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;const title=$('task-input').value.trim();if(!title){e.preventDefault();return}const main=$('main-input').checked;if(main)state.tasks.forEach(x=>x.main=false);if(editing){const x=state.tasks.find(x=>x.id===editing);x.title=title;x.main=main}else state.tasks.push({id:Date.now().toString(),title,done:false,main,icon:'○',tone:'green'});render()});
+      $('care-list').innerHTML=state.care.map(x=>`<button class="care-row ${x.done?'is-done':''}" data-care="${x.id}"><span class="round-icon ${x.tone}">${x.icon}</span><span>${x.title}</span><span class="checkbox ${x.done?'checked':''}">${x.done?'✓':''}</span></button>`).join('');}
+    document.addEventListener('click',e=>{const b=e.target.closest('[data-toggle],[data-care],[data-edit]');if(!b)return;if(b.dataset.toggle){const x=state.tasks.find(x=>x.id===b.dataset.toggle);x.done=!x.done;render();save()}if(b.dataset.care){const x=state.care.find(x=>x.id===b.dataset.care);x.done=!x.done;render();save()}if(b.dataset.edit)openEditor(b.dataset.edit)});
+    function openEditor(id=null){editing=id;const x=state.tasks.find(x=>x.id===id);$('editor-day').textContent=`План: ${dayName(selectedDay).toLowerCase()}, ${new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(dayDate(selectedDay))}`;$('editor-title').textContent=x?'Изменить задачу':'Новая задача';$('task-input').value=x?.title||'';$('main-input').checked=x?.main||false;$('editor').showModal();setTimeout(()=>$('task-input').focus(),50)}
+    $('add').onclick=()=>openEditor();$('editor-form').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;const title=$('task-input').value.trim();if(!title){e.preventDefault();return}const main=$('main-input').checked;if(main)state.tasks.forEach(x=>x.main=false);if(editing){const x=state.tasks.find(x=>x.id===editing);x.title=title;x.main=main}else state.tasks.push({id:Date.now().toString(),title,done:false,main,icon:'○',tone:'green'});render();save()});
+    $('previous-day').onclick=()=>loadDay(addDays(selectedDay,-1));$('next-day').onclick=()=>loadDay(addDays(selectedDay,1));
     const user=tg?.initDataUnsafe?.user;if(user?.first_name)$('name').textContent=user.first_name;
     $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
-    async function start(){if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(response.ok){const saved=cleanState(await response.json());if(saved?.tasks&&saved?.care)state=saved}}catch{}}render()}start();
+    async function loadDay(day){if(day<minDay||day>maxDay)return;const token=++loadToken;selectedDay=day;editing=null;state=readLocal(day);render();if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(token!==loadToken)return;if(response.ok){const saved=cleanState(await response.json());if(saved?.tasks&&saved?.care)state=saved}}catch{}}
+      if(token!==loadToken)return;
+      if(day===today&&!localStorage.getItem(todayClearMarker)){state={...state,tasks:[]};render();if(await save())localStorage.setItem(todayClearMarker,'1')}else{localStorage.setItem(storageKey(day),JSON.stringify(state));render()}}
+    loadDay(today);
   </script>
 </body></html>
