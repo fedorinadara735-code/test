@@ -17,24 +17,27 @@
       <header class="hero"><div><span class="eyebrow" id="date"></span><h1>Доброе утро, <span id="name">Дара</span> <em>♡</em></h1></div><p class="quiet-note">Ты<br>в порядке ♡</p></header>
       <section class="asya-message"><div class="asya-avatar"><img src="./asya.png" alt="Ася"></div><div><p><strong>Ася:</strong> <span id="message">Твой план выглядит реалистично</span></p><span>Ты делаешь важные шаги — и это уже многое значит 🌿</span></div></section>
       <section class="card plan-card">
-        <div class="card-heading"><h2>План на сегодня</h2><span class="summary-button"><span id="task-count">0 из 3</span> <b>›</b></span></div>
+        <div class="card-heading"><h2>План на сегодня</h2><span class="summary-button"><span id="task-count">0 из 0</span> <b>›</b></span></div>
         <div id="main-task"></div><div class="task-list" id="task-list"></div>
       </section>
       <section class="card care-card">
-        <div class="card-heading"><h2>Забота о себе</h2><span class="summary-button"><span id="care-count">1 из 3</span> <b>›</b></span></div>
-        <div class="care-content"><div class="progress-wrap"><div class="progress-ring" id="progress"><div><strong id="progress-text">1/3</strong><span>забота<br>о себе сегодня</span><b>♧</b></div></div></div><div class="care-list" id="care-list"></div></div>
+        <div class="card-heading"><h2>Забота о себе</h2><span class="summary-button"><span id="care-count">0 из 3</span> <b>›</b></span></div>
+        <div class="care-content"><div class="progress-wrap"><div class="progress-ring" id="progress"><div><strong id="progress-text">0/3</strong><span>забота<br>о себе сегодня</span><b>♧</b></div></div></div><div class="care-list" id="care-list"></div></div>
       </section>
       <div class="actions"><button class="add-button" id="add"><span>＋</span> Добавить задачу</button><p>Больше<br>хороших дней ♡</p></div>
     </section>
   </main>
   <dialog class="static-dialog" id="editor"><form method="dialog" class="editor-form" id="editor-form"><span class="editor-kicker">План на сегодня</span><h2 id="editor-title">Новая задача</h2><label>Что хочешь сделать?<input id="task-input" type="text" placeholder="Например, разобрать почту" required></label><label class="main-choice"><input id="main-input" type="checkbox"> Сделать главной задачей</label><menu><button class="cancel-button" value="cancel">Отмена</button><button class="save-button" value="default">Сохранить</button></menu></form></dialog>
   <script>
-    const initial={tasks:[{id:'main',title:'Подготовить презентацию',done:false,main:true,icon:'★',tone:'green'},{id:'doctor',title:'Позвонить врачу',done:false,main:false,icon:'☎',tone:'peach'},{id:'shopping',title:'Купить продукты',done:false,main:false,icon:'⌑',tone:'green'}],care:[{id:'sport',title:'Спорт',icon:'↔',tone:'green',done:true},{id:'walk',title:'Прогулка',icon:'♧',tone:'peach',done:false},{id:'hobby',title:'Хобби',icon:'◉',tone:'lilac',done:false}]};
+    const emptyState=()=>({tasks:[],care:[{id:'sport',title:'Спорт',icon:'↔',tone:'green',done:false},{id:'walk',title:'Прогулка',icon:'♧',tone:'peach',done:false},{id:'hobby',title:'Хобби',icon:'◉',tone:'lilac',done:false}]});
     const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
     const api='https://asya.31-76-31-42.sslip.io';
     const day=new Date().toLocaleDateString('en-CA');
-    let state; try{state=JSON.parse(localStorage.getItem('asya-day'))||initial}catch{state=initial} let editing=null;
-    const $=id=>document.getElementById(id); const save=()=>{localStorage.setItem('asya-day',JSON.stringify(state));if(tg?.initData)fetch(`${api}/state?day=${day}`,{method:'PUT',headers:{'content-type':'application/json','x-telegram-init-data':tg.initData},body:JSON.stringify(state)}).catch(()=>{})};
+    const storageKey=`asya-day-${day}`;
+    const isDemoState=s=>Array.isArray(s?.tasks)&&s.tasks.length===3&&['main','doctor','shopping'].every(id=>s.tasks.some(x=>x.id===id));
+    const cleanState=s=>isDemoState(s)?emptyState():s;
+    let state; try{state=cleanState(JSON.parse(localStorage.getItem(storageKey)))||emptyState()}catch{state=emptyState()} let editing=null;
+    const $=id=>document.getElementById(id); const save=()=>{localStorage.setItem(storageKey,JSON.stringify(state));if(tg?.initData)fetch(`${api}/state?day=${day}`,{method:'PUT',headers:{'content-type':'application/json','x-telegram-init-data':tg.initData},body:JSON.stringify(state)}).catch(()=>{})};
     const esc=s=>s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     function render(){const done=state.tasks.filter(x=>x.done).length, cared=state.care.filter(x=>x.done).length, main=state.tasks.find(x=>x.main)||state.tasks[0];
       $('task-count').textContent=`${done} из ${state.tasks.length}`;$('care-count').textContent=`${cared} из ${state.care.length}`;$('progress-text').textContent=`${cared}/${state.care.length}`;$('progress').style.setProperty('--progress',`${cared/state.care.length*100}%`);
@@ -47,6 +50,6 @@
     $('add').onclick=()=>openEditor();$('editor-form').addEventListener('submit',e=>{if(e.submitter?.value==='cancel')return;const title=$('task-input').value.trim();if(!title){e.preventDefault();return}const main=$('main-input').checked;if(main)state.tasks.forEach(x=>x.main=false);if(editing){const x=state.tasks.find(x=>x.id===editing);x.title=title;x.main=main}else state.tasks.push({id:Date.now().toString(),title,done:false,main,icon:'○',tone:'green'});render()});
     const user=tg?.initDataUnsafe?.user;if(user?.first_name)$('name').textContent=user.first_name;
     $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
-    async function start(){if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(response.ok){const saved=await response.json();if(saved?.tasks&&saved?.care)state=saved}}catch{}}render()}start();
+    async function start(){if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(response.ok){const saved=cleanState(await response.json());if(saved?.tasks&&saved?.care)state=saved}}catch{}}render()}start();
   </script>
 </body></html>
