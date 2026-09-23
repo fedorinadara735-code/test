@@ -42,7 +42,8 @@
     const addDays=(day,amount)=>{const date=new Date(`${day}T12:00:00`);date.setDate(date.getDate()+amount);return formatDay(date)};
     const minDay=addDays(today,-15),maxDay=addDays(today,15);
     const storageKey=day=>`asya-day-${day}`;
-    const todayClearMarker=`asya-cleared-${today}-v3`;
+    const forcedClearDay='2026-09-23';
+    const todayClearMarker='asya-cleared-2026-09-23-v3';
     const isDemoState=s=>Array.isArray(s?.tasks)&&s.tasks.length===3&&['main','doctor','shopping'].every(id=>s.tasks.some(x=>x.id===id));
     const cleanState=s=>isDemoState(s)?emptyState():s;
     let selectedDay=today,state=emptyState(),editing=null,loadToken=0;
@@ -68,7 +69,7 @@
     $('date').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
     async function loadDay(day){if(day<minDay||day>maxDay)return;const token=++loadToken;selectedDay=day;editing=null;state=readLocal(day);render();if(tg?.initData){try{const response=await fetch(`${api}/state?day=${day}`,{headers:{'x-telegram-init-data':tg.initData}});if(token!==loadToken)return;if(response.ok){const saved=cleanState(await response.json());if(saved?.tasks&&saved?.care)state=saved}}catch{}}
       if(token!==loadToken)return;
-      if(day===today&&!localStorage.getItem(todayClearMarker)){state={...state,tasks:[]};render();if(await save())localStorage.setItem(todayClearMarker,'1')}else{localStorage.setItem(storageKey(day),JSON.stringify(state));render()}}
+      if(day===forcedClearDay&&!localStorage.getItem(todayClearMarker)){state={...state,tasks:[]};render();if(await save())localStorage.setItem(todayClearMarker,'1')}else{localStorage.setItem(storageKey(day),JSON.stringify(state));render()}}
     loadDay(today);
   </script>
 </body></html>
